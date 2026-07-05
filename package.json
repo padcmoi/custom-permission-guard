@@ -1,7 +1,7 @@
 {
-  "name": "@naskot/<package-name>",
+  "name": "@naskot/custom-permission-guard",
   "version": "0.0.0",
-  "description": "<short description>",
+  "description": "Framework-agnostic ACL core: group-based access control for global and per-domain resources, throw-on-forbidden, zero framework/DB coupling.",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -22,11 +22,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/padcmoi/<repo-name>.git"
+    "url": "https://github.com/padcmoi/custom-permission-guard.git"
   },
-  "homepage": "https://github.com/padcmoi/<repo-name>",
+  "homepage": "https://github.com/padcmoi/custom-permission-guard",
   "bugs": {
-    "url": "https://github.com/padcmoi/<repo-name>/issues"
+    "url": "https://github.com/padcmoi/custom-permission-guard/issues"
   },
   "engines": {
     "node": ">=18"
@@ -37,6 +37,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -45,16 +46,22 @@
     "prepublishOnly": "npm run check && npm test && npm run build"
   },
   "keywords": [
-    "node",
+    "acl",
+    "permissions",
+    "authorization",
+    "rbac",
+    "guard",
     "typescript",
-    "npm-package"
+    "framework-agnostic"
   ],
   "dependencies": {},
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.6.0",
     "eslint": "^10.2.1",
+    "mysql2": "^3.22.5",
     "prettier": "^3.8.3",
+    "testcontainers": "^12.0.4",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.2",
