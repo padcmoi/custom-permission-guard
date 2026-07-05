@@ -1,0 +1,19 @@
+{
+  "name": "nest-multiple",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@naskot/custom-permission-guard": "file:../..",
+    "@nestjs/common": "^11.1.27",
+    "@nestjs/core": "^11.1.27",
+    "mysql2": "^3.22.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  }
+}
