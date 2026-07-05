@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] - 2026-07-05
+## [1.0.0] - 2026-07-05
 
 - Implement the permission engine: `assertOne`/`assertAll` (global + domain tier, acrud + custom
   dimensions, ownership/bridge bypasses, `dependsOn` gate), group CRUD, group permission grants

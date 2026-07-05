@@ -1,6 +1,6 @@
 {
   "name": "@naskot/custom-permission-guard",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Framework-agnostic ACL core: group-based access control for global and per-domain resources, throw-on-forbidden, zero framework/DB coupling.",
   "license": "MIT",
   "type": "module",
