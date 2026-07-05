@@ -1,0 +1,94 @@
+name: custom-permission-guard-poc
+
+networks:
+  poc:
+    driver: bridge
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: cpg-poc-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      # High host port so this never collides with a locally-running MySQL/
+      # MariaDB, or with the sibling node-hmac-auth-core-propagation POC
+      # (which uses the 33xxx/35xxx/36xxx/38xxx ranges).
+      - "37306:3306"
+    volumes:
+      - ./scripts/init-mariadb.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - poc
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  express-single:
+    build:
+      context: ..
+      dockerfile: poc/express-single/Dockerfile
+    container_name: cpg-poc-express-single
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: express_single_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - poc
+
+  express-multiple:
+    build:
+      context: ..
+      dockerfile: poc/express-multiple/Dockerfile
+    container_name: cpg-poc-express-multiple
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: express_multiple_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - poc
+
+  nest-single:
+    build:
+      context: ..
+      dockerfile: poc/nest-single/Dockerfile
+    container_name: cpg-poc-nest-single
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: nest_single_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - poc
+
+  nest-multiple:
+    build:
+      context: ..
+      dockerfile: poc/nest-multiple/Dockerfile
+    container_name: cpg-poc-nest-multiple
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: nest_multiple_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - poc

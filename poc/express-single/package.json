@@ -1,0 +1,19 @@
+{
+  "name": "express-single",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@naskot/custom-permission-guard": "file:../..",
+    "express": "^5.2.1",
+    "mysql2": "^3.22.5",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}
