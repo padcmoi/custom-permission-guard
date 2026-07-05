@@ -6,3 +6,6 @@ coverage/
 .env.*
 .DS_Store
 .trash/
+
+# Ignore npm pack file
+*.tgz
