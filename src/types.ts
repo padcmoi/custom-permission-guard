@@ -32,6 +32,11 @@ export interface GroupDetail {
 export interface GlobalResourceSchema {
   rules: string[];
   custom?: Record<string, (accountId: AccountId) => boolean>;
+  // Gate (not a bypass): each {resource, action} must also be granted
+  // globally, checked recursively, before this resource's own acrud is even
+  // evaluated. Same contract as DomainResourceSchema's dependsOn below, minus
+  // the ownership/bridge bypasses that only exist at the domain tier.
+  dependsOn?: { resource: string; action: string }[];
 }
 
 export interface DomainResourceSchema {

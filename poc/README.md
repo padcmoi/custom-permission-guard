@@ -53,13 +53,14 @@ docker inspect --format='{{.State.ExitCode}}' cpg-poc-nest-multiple
 
 ## Scenario battery
 
-Each app runs the same ~17 scenarios (see `shared/scenarios.ts`), traced directly to
+Each app runs the same ~19 scenarios (see `shared/scenarios.ts`), traced directly to
 [`__PLAN/expected-custom-permission-guard/examples.md`](../__PLAN/expected-custom-permission-guard/examples.md):
 the `access` prerequisite (denied at check-time even with a raw `read` row present, and stripped
 at write-time when omitted), OR-across-groups in `multiple` mode vs. the schema-level
 `UNIQUE(account_id)` rejection in `single` mode, domain ownership bypass, the global→domain
-bridge (and that it never leaks into a sibling resource), the `dependsOn` gate (denied outright,
-and satisfied recursively via the dependency's own bridge/ownership), `custom` checks
+bridge (and that it never leaks into a sibling resource), the `dependsOn` gate on the domain tier
+(denied outright, and satisfied recursively via the dependency's own bridge/ownership) and on the
+global tier (denied outright, satisfied once the dependency is itself granted), `custom` checks
 (granted/denied), the `authorizedPermissions` kill-switch, unknown resource/action surfacing a
 distinct config error, anti-lockout, `getEffectivePermissions`, and group
 CRUD/membership/default-group/`onAccountCreated`.

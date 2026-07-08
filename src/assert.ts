@@ -104,7 +104,20 @@ async function isGlobalAcrudGranted(
   resource: string,
   action: string
 ) {
-  knownGlobalSchema(config, resource, action);
+  const schema = knownGlobalSchema(config, resource, action);
+
+  // Gate: dependsOn makes access HARDER, never easier — same contract as the
+  // domain tier's gate in isDomainAcrudGranted below (a failing dependency
+  // THROWS via onForbidden instead of returning false, so this resource's
+  // own acrud is never even evaluated once a dependency is missing). No
+  // ownership/bridge bypass exists at this tier, so there's nothing for the
+  // gate to sit behind — it always runs first.
+  if (schema.dependsOn) {
+    for (const dep of schema.dependsOn) {
+      await assertSingleGlobalAcrud(config, cache, accountId, dep.resource, dep.action);
+    }
+  }
+
   return isGrantedByGroups(config, cache, "global", accountId, undefined, resource, requiredActionsFor(action));
 }
 

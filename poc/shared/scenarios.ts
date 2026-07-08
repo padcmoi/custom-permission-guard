@@ -233,4 +233,32 @@ export async function runScenarios(guard: CustomPermissionGuard, pool: Pool, gro
     const members = await guard.findGroupMemberIds(groupId);
     assertTrue(members.includes(acc), "S16 account is a member");
   });
+
+  await step(
+    "S17 global dependsOn denies the dependent resource when projects:access is missing, even with its own rows present",
+    async () => {
+      const acc = uniqueId("acc");
+      await seedAccount(pool, acc);
+      const groupId = await guard.createGroup(uniqueId("group"));
+      await guard.setGroupGlobalPermissions(groupId, [
+        { resource: "billing", action: "access" },
+        { resource: "billing", action: "read" },
+      ]);
+      await guard.assignAccountToGroup(acc, groupId);
+      await assertRejects(() => guard.assertOne.global(acc, "billing", { acrud: ["read"] }), PermissionDeniedError, "S17");
+    }
+  );
+
+  await step("S18 global dependsOn is satisfied once projects:access is itself granted via a group row", async () => {
+    const acc = uniqueId("acc");
+    await seedAccount(pool, acc);
+    const groupId = await guard.createGroup(uniqueId("group"));
+    await guard.setGroupGlobalPermissions(groupId, [
+      { resource: "projects", action: "access" },
+      { resource: "billing", action: "access" },
+      { resource: "billing", action: "read" },
+    ]);
+    await guard.assignAccountToGroup(acc, groupId);
+    await guard.assertOne.global(acc, "billing", { acrud: ["read"] });
+  });
 }

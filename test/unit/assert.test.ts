@@ -32,6 +32,7 @@ function testConfig(store: FakeStore, overrides: Partial<CustomPermissionGuardUs
           rules: ["access", "read", "create", "modify", "delete"],
           custom: { "2fa": (accountId) => accountId === "has-2fa" },
         },
+        billing: { rules: ["access", "read"], dependsOn: [{ resource: "domains", action: "access" }] },
       },
       domain: {
         domain: { rules: ["access", "read", "modify"], bridgeFromGlobal: "domains" },
@@ -165,6 +166,30 @@ describe("assertOne/assertAll — domain tier bypasses and gate", () => {
     seedDomainPermission(store, 10, 7, "recipients", "read");
     const { assertOne } = createAssertions(testConfig(store));
     await expect(assertOne.domain(1, 7, "recipients", { acrud: ["read"] })).resolves.toBeUndefined();
+  });
+});
+
+describe("assertOne/assertAll — global tier dependsOn gate", () => {
+  let store: FakeStore;
+  beforeEach(() => {
+    store = createFakeStore();
+  });
+
+  it("gates on dependsOn: denies the dependent resource when domains:access is missing, even if its own rows exist", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "billing", "access");
+    seedGlobalPermission(store, 10, "billing", "read");
+    const { assertOne } = createAssertions(testConfig(store));
+    await expect(assertOne.global(1, "billing", { acrud: ["read"] })).rejects.toBeInstanceOf(TestForbiddenError);
+  });
+
+  it("grants the dependent resource once domains:access is itself granted via a group row", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    seedGlobalPermission(store, 10, "billing", "access");
+    seedGlobalPermission(store, 10, "billing", "read");
+    const { assertOne } = createAssertions(testConfig(store));
+    await expect(assertOne.global(1, "billing", { acrud: ["read"] })).resolves.toBeUndefined();
   });
 });
 

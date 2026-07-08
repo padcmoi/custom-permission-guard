@@ -72,7 +72,11 @@ describe("integration — full flow against a real MariaDB", () => {
       groupMode: "multiple",
       lockoutProtected: [{ resource: "groups", actions: ["access", "modify"] }],
       schemas: {
-        global: { domains: { rules: ["access", "read", "create", "modify"] }, groups: { rules: ["access", "modify"] } },
+        global: {
+          domains: { rules: ["access", "read", "create", "modify"] },
+          groups: { rules: ["access", "modify"] },
+          billing: { rules: ["access", "read"], dependsOn: [{ resource: "domains", action: "access" }] },
+        },
         domain: {
           domain: { rules: ["access", "modify"], bridgeFromGlobal: "domains" },
           recipients: { rules: ["access", "read"], dependsOn: [{ resource: "domain", action: "access" }] },
@@ -93,6 +97,26 @@ describe("integration — full flow against a real MariaDB", () => {
 
     await expect(guard.assertOne.global("acc-1", "domains", { acrud: ["create"] })).resolves.toBeUndefined();
     await expect(guard.assertOne.global("acc-1", "domains", { acrud: ["read"] })).rejects.toBeInstanceOf(TestForbiddenError);
+  });
+
+  it("gates the global tier on dependsOn through real rows, denying then granting once the prerequisite is met", async () => {
+    const guard = buildGuard();
+    await seedAccount(pool, "acc-6");
+    const groupId = await guard.createGroup("billing-readers");
+    await guard.setGroupGlobalPermissions(groupId, [
+      { resource: "billing", action: "access" },
+      { resource: "billing", action: "read" },
+    ]);
+    await guard.assignAccountToGroup("acc-6", groupId);
+
+    await expect(guard.assertOne.global("acc-6", "billing", { acrud: ["read"] })).rejects.toBeInstanceOf(TestForbiddenError);
+
+    await guard.setGroupGlobalPermissions(groupId, [
+      { resource: "domains", action: "access" },
+      { resource: "billing", action: "access" },
+      { resource: "billing", action: "read" },
+    ]);
+    await expect(guard.assertOne.global("acc-6", "billing", { acrud: ["read"] })).resolves.toBeUndefined();
   });
 
   it("persists the write-time access-prerequisite cleanup in real rows", async () => {
