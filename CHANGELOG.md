@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Unreleased]
+
+- Extend the `dependsOn` gate to the global tier: `GlobalResourceSchema` now accepts the same
+  `dependsOn?: { resource: string; action: string }[]` as the domain tier, enforced recursively
+  at check-time by `isGlobalAcrudGranted`, on the same "gate, not a bypass" contract (a failing
+  dependency throws via `onForbidden` before the resource's own acrud is evaluated). No
+  ownership/bridge bypass exists at this tier, so the gate always runs first. Covered by new unit
+  tests (`test/unit/assert.test.ts`) and a new integration test against a real MariaDB
+  (`test/integration/full-flow.test.ts`).
+
 ## [1.0.0] - 2026-07-05
 
 - Implement the permission engine: `assertOne`/`assertAll` (global + domain tier, acrud + custom
