@@ -85,6 +85,12 @@ export const customPermissionGuard = createCustomPermissionGuard({
           "2fa": (accountId) => hasTwoFactorEnabled(accountId), // your own lookup
         },
       },
+      // dependsOn works at the global tier too: "billing" is never granted
+      // without projects:access first.
+      billing: {
+        rules: ["access", "read"],
+        dependsOn: [{ resource: "projects", action: "access" }],
+      },
     },
     domain: {
       // bridgeFromGlobal: holding projects.<action> globally also grants

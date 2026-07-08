@@ -10,7 +10,7 @@ never touches a database, and never reads `process.env` — the consumer wires a
 independent resource tiers (`global`, `domain`), each with its own `access`-gated
 read/create/modify/delete rules; group-based membership with OR/union semantics across
 multiple groups; domain ownership and global→domain "bridge" bypasses; a `dependsOn` gate for
-cross-resource prerequisites; and full group entity management (CRUD, membership, default
+cross-resource prerequisites, available at both tiers; and full group entity management (CRUD, membership, default
 group, permission grants) with a built-in anti-lockout invariant.
 
 ## Install
@@ -62,6 +62,13 @@ const customPermissionGuard = createCustomPermissionGuard({
       projects: {
         rules: ["access", "read", "create", "modify", "delete"],
         custom: { "2fa": (accountId) => hasTwoFactorEnabled(accountId) }, // your own lookup
+      },
+      // dependsOn works at the global tier too: "billing" is never granted
+      // without projects:access first — checked recursively, same as the
+      // domain tier's tasks/workspace pair below.
+      billing: {
+        rules: ["access", "read"],
+        dependsOn: [{ resource: "projects", action: "access" }],
       },
     },
     domain: {

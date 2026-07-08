@@ -11,6 +11,8 @@
   (`test/integration/full-flow.test.ts`).
 - Add 2 new proof scenarios (S17/S18 in `poc/shared/scenarios.ts`, run by all 4 POC apps)
   demonstrating the global-tier gate against a real MariaDB.
+- Document the global-tier `dependsOn` gate in the README and the NestJS/Express integration
+  guides.
 
 ## [1.0.0] - 2026-07-05
 

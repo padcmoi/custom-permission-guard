@@ -61,6 +61,12 @@ export class CustomPermissionGuardService {
             rules: ["access", "read", "create", "modify", "delete"],
             custom: { "2fa": (accountId) => hasTwoFactorEnabled(accountId) },
           },
+          // dependsOn works at the global tier too: "billing" is never
+          // granted without projects:access first.
+          billing: {
+            rules: ["access", "read"],
+            dependsOn: [{ resource: "projects", action: "access" }],
+          },
         },
         domain: {
           // bridgeFromGlobal: holding projects.<action> globally also
