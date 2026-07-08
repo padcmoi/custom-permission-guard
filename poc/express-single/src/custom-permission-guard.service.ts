@@ -35,6 +35,10 @@ export const customPermissionGuard = createCustomPermissionGuard({
         custom: { "2fa": (accountId) => typeof accountId === "string" && accountId.startsWith("has2fa-") },
       },
       groups: { rules: ["access", "modify"] },
+      // dependsOn: "billing" is never granted without projects:access first
+      // — same gate contract as the domain tier's tasks/workspace pair,
+      // now also available at the global tier.
+      billing: { rules: ["access", "read"], dependsOn: [{ resource: "projects", action: "access" }] },
     },
     domain: {
       workspace: { rules: ["access", "read", "modify"], bridgeFromGlobal: "projects" },

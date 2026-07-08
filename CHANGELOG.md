@@ -9,6 +9,8 @@
   ownership/bridge bypass exists at this tier, so the gate always runs first. Covered by new unit
   tests (`test/unit/assert.test.ts`) and a new integration test against a real MariaDB
   (`test/integration/full-flow.test.ts`).
+- Add 2 new proof scenarios (S17/S18 in `poc/shared/scenarios.ts`, run by all 4 POC apps)
+  demonstrating the global-tier gate against a real MariaDB.
 
 ## [1.0.0] - 2026-07-05
 
