@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased]
+## [1.1.0] - 2026-07-08
 
 - Extend the `dependsOn` gate to the global tier: `GlobalResourceSchema` now accepts the same
   `dependsOn?: { resource: string; action: string }[]` as the domain tier, enforced recursively
