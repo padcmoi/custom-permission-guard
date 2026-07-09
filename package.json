@@ -1,6 +1,6 @@
 {
   "name": "@naskot/custom-permission-guard",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Framework-agnostic ACL core: group-based access control for global and per-domain resources, throw-on-forbidden, zero framework/DB coupling.",
   "license": "MIT",
   "type": "module",
@@ -42,8 +42,7 @@
     "check": "npm run typecheck",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "format": "prettier --write .",
-    "ci": "npm ci && npm run lint && npm run typecheck && npm test && npm run build",
-    "prepublishOnly": "npm run check && npm test && npm run build"
+    "prepublishOnly": "npm ci && npm run lint && npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "acl",

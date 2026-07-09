@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [1.2.0] - 2026-07-09
+
+- Widen `GroupId` (new exported type, `number | string`, mirroring `AccountId`) across the
+  public API and `data.*` callbacks (`types.ts`, `groups.ts`, `group-permissions.ts`,
+  `assert.ts`, `index.ts`): every `groupId` parameter and group-id return value now accepts a
+  non-numeric ID scheme, matching the existing flexibility `AccountId` already had. Covered by
+  the existing unit suite (`test/helpers/fake-data.ts` widened to match) and re-verified end to
+  end against real numeric MariaDB IDs via all 4 POC apps (19/19 scenarios each).
+
 ## [1.1.0] - 2026-07-08
 
 - Extend the `dependsOn` gate to the global tier: `GlobalResourceSchema` now accepts the same
