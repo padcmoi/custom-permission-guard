@@ -1,5 +1,5 @@
 import { CustomPermissionGuardConfigError } from "./errors.js";
-import type { AccountId, AcrudRequirement, CustomPermissionGuardConfig, CustomRequirement } from "./types.js";
+import type { AccountId, AcrudRequirement, CustomPermissionGuardConfig, CustomRequirement, GroupId } from "./types.js";
 
 type Tier = "global" | "domain";
 type Dimension = "acrud" | "custom";
@@ -7,16 +7,16 @@ type Dimension = "acrud" | "custom";
 // Scoped to a single assertAll(...) call — never persisted beyond it, so a
 // permission change always takes effect on the very next call.
 interface CheckCache {
-  groupIds: Map<AccountId, Promise<number[]>>;
-  globalPerms: Map<number, Promise<{ resource: string; action: string }[]>>;
-  domainPerms: Map<number, Promise<{ domainId: number; resource: string; action: string }[]>>;
+  groupIds: Map<AccountId, Promise<GroupId[]>>;
+  globalPerms: Map<GroupId, Promise<{ resource: string; action: string }[]>>;
+  domainPerms: Map<GroupId, Promise<{ domainId: number; resource: string; action: string }[]>>;
 }
 
 function createCache() {
   return {
-    groupIds: new Map<AccountId, Promise<number[]>>(),
-    globalPerms: new Map<number, Promise<{ resource: string; action: string }[]>>(),
-    domainPerms: new Map<number, Promise<{ domainId: number; resource: string; action: string }[]>>(),
+    groupIds: new Map<AccountId, Promise<GroupId[]>>(),
+    globalPerms: new Map<GroupId, Promise<{ resource: string; action: string }[]>>(),
+    domainPerms: new Map<GroupId, Promise<{ domainId: number; resource: string; action: string }[]>>(),
   };
 }
 
@@ -29,7 +29,7 @@ function resolveGroupIds(config: CustomPermissionGuardConfig, cache: CheckCache,
   return cached;
 }
 
-function resolveGlobalPermissions(config: CustomPermissionGuardConfig, cache: CheckCache, groupId: number) {
+function resolveGlobalPermissions(config: CustomPermissionGuardConfig, cache: CheckCache, groupId: GroupId) {
   let cached = cache.globalPerms.get(groupId);
   if (!cached) {
     cached = config.data.findGlobalPermissions(groupId);
@@ -38,7 +38,7 @@ function resolveGlobalPermissions(config: CustomPermissionGuardConfig, cache: Ch
   return cached;
 }
 
-function resolveDomainPermissions(config: CustomPermissionGuardConfig, cache: CheckCache, groupId: number) {
+function resolveDomainPermissions(config: CustomPermissionGuardConfig, cache: CheckCache, groupId: GroupId) {
   let cached = cache.domainPerms.get(groupId);
   if (!cached) {
     cached = config.data.findDomainPermissions(groupId);

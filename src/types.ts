@@ -1,5 +1,11 @@
 export type AccountId = number | string;
 
+// Unlike AccountId, group IDs used to be lib-owned (always createGroup()'s
+// own auto-increment) -- widened to match AccountId's shape since a consumer
+// may back groups with the same non-numeric ID scheme as accounts (UUID,
+// ObjectId, ...).
+export type GroupId = number | string;
+
 export interface AcrudRequirement {
   resource: string;
   acrud?: string[];
@@ -11,7 +17,7 @@ export interface CustomRequirement {
 }
 
 export interface GroupSummary {
-  id: number;
+  id: GroupId;
   name: string;
   description: string | null;
   ownerId: AccountId | null;
@@ -21,7 +27,7 @@ export interface GroupSummary {
 }
 
 export interface GroupDetail {
-  id: number;
+  id: GroupId;
   name: string;
   description: string | null;
   ownerId: AccountId | null;
@@ -81,26 +87,26 @@ export interface CustomPermissionGuard {
   }>;
 
   listGroups(): Promise<GroupSummary[]>;
-  findGroup(groupId: number): Promise<GroupDetail | null>;
-  createGroup(name: string): Promise<number>;
-  updateGroup(groupId: number, changes: { name?: string; description?: string }): Promise<void>;
-  deleteGroup(groupId: number): Promise<void>;
-  setGroupOwner(groupId: number, accountId: AccountId | null): Promise<void>;
+  findGroup(groupId: GroupId): Promise<GroupDetail | null>;
+  createGroup(name: string): Promise<GroupId>;
+  updateGroup(groupId: GroupId, changes: { name?: string; description?: string }): Promise<void>;
+  deleteGroup(groupId: GroupId): Promise<void>;
+  setGroupOwner(groupId: GroupId, accountId: AccountId | null): Promise<void>;
 
-  findGroupGlobalPermissions(groupId: number): Promise<{ resource: string; action: string }[]>;
-  findGroupDomainPermissions(groupId: number): Promise<{ domainId: number; resource: string; action: string }[]>;
-  setGroupGlobalPermissions(groupId: number, permissions: { resource: string; action: string }[]): Promise<void>;
+  findGroupGlobalPermissions(groupId: GroupId): Promise<{ resource: string; action: string }[]>;
+  findGroupDomainPermissions(groupId: GroupId): Promise<{ domainId: number; resource: string; action: string }[]>;
+  setGroupGlobalPermissions(groupId: GroupId, permissions: { resource: string; action: string }[]): Promise<void>;
   setGroupDomainPermissions(
-    groupId: number,
+    groupId: GroupId,
     permissions: { domainId: number; resource: string; action: string }[]
   ): Promise<void>;
 
-  assignAccountToGroup(accountId: AccountId, groupId: number): Promise<void>;
-  removeAccountFromGroup(accountId: AccountId, groupId: number): Promise<void>;
-  findGroupMemberIds(groupId: number): Promise<AccountId[]>;
+  assignAccountToGroup(accountId: AccountId, groupId: GroupId): Promise<void>;
+  removeAccountFromGroup(accountId: AccountId, groupId: GroupId): Promise<void>;
+  findGroupMemberIds(groupId: GroupId): Promise<AccountId[]>;
 
-  setDefaultGroup(groupId: number | null): Promise<void>;
-  onAccountCreated(accountId: AccountId): Promise<number | null>;
+  setDefaultGroup(groupId: GroupId | null): Promise<void>;
+  onAccountCreated(accountId: AccountId): Promise<GroupId | null>;
 }
 
 // Public input to createCustomPermissionGuard: onForbidden/data are mandatory
@@ -134,30 +140,30 @@ export interface CustomPermissionGuardConfig {
   lockoutProtected?: { resource: string; actions: string[] }[];
 
   data: {
-    findAccountGroupIds(accountId: AccountId): Promise<number[]>;
-    findGlobalPermissions(groupId: number): Promise<{ resource: string; action: string }[]>;
-    findDomainPermissions(groupId: number): Promise<{ domainId: number; resource: string; action: string }[]>;
+    findAccountGroupIds(accountId: AccountId): Promise<GroupId[]>;
+    findGlobalPermissions(groupId: GroupId): Promise<{ resource: string; action: string }[]>;
+    findDomainPermissions(groupId: GroupId): Promise<{ domainId: number; resource: string; action: string }[]>;
     findOwnedDomainIds(accountId: AccountId): Promise<number[]>;
 
-    createGroup(name: string): Promise<number>;
+    createGroup(name: string): Promise<GroupId>;
     listGroups(): Promise<GroupSummary[]>;
-    findGroup(groupId: number): Promise<GroupDetail | null>;
-    updateGroup(groupId: number, changes: { name?: string; description?: string }): Promise<void>;
-    setGroupOwner(groupId: number, accountId: AccountId | null): Promise<void>;
-    deleteGroup(groupId: number): Promise<void>;
+    findGroup(groupId: GroupId): Promise<GroupDetail | null>;
+    updateGroup(groupId: GroupId, changes: { name?: string; description?: string }): Promise<void>;
+    setGroupOwner(groupId: GroupId, accountId: AccountId | null): Promise<void>;
+    deleteGroup(groupId: GroupId): Promise<void>;
 
-    setGroupGlobalPermissions(groupId: number, permissions: { resource: string; action: string }[]): Promise<void>;
+    setGroupGlobalPermissions(groupId: GroupId, permissions: { resource: string; action: string }[]): Promise<void>;
     setGroupDomainPermissions(
-      groupId: number,
+      groupId: GroupId,
       permissions: { domainId: number; resource: string; action: string }[]
     ): Promise<void>;
     countGroupsWithGlobalPermission(resource: string, actions: string[]): Promise<number>;
 
-    assignAccountToGroup(accountId: AccountId, groupId: number): Promise<void>;
-    findGroupMemberIds(groupId: number): Promise<AccountId[]>;
-    removeAccountFromGroup(accountId: AccountId, groupId: number): Promise<void>;
+    assignAccountToGroup(accountId: AccountId, groupId: GroupId): Promise<void>;
+    findGroupMemberIds(groupId: GroupId): Promise<AccountId[]>;
+    removeAccountFromGroup(accountId: AccountId, groupId: GroupId): Promise<void>;
 
-    setDefaultGroup(groupId: number | null): Promise<void>;
-    findDefaultGroupId(): Promise<number | null>;
+    setDefaultGroup(groupId: GroupId | null): Promise<void>;
+    findDefaultGroupId(): Promise<GroupId | null>;
   };
 }

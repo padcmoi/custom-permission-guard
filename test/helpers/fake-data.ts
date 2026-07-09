@@ -1,4 +1,4 @@
-import type { AccountId, CustomPermissionGuardConfig } from "../../src/types.js";
+import type { AccountId, CustomPermissionGuardConfig, GroupId } from "../../src/types.js";
 
 interface FakeGroup {
   name: string;
@@ -9,41 +9,41 @@ interface FakeGroup {
 }
 
 export interface FakeStore {
-  accountGroups: Map<AccountId, Set<number>>;
-  globalPermissions: Map<number, { resource: string; action: string }[]>;
-  domainPermissions: Map<number, { domainId: number; resource: string; action: string }[]>;
+  accountGroups: Map<AccountId, Set<GroupId>>;
+  globalPermissions: Map<GroupId, { resource: string; action: string }[]>;
+  domainPermissions: Map<GroupId, { domainId: number; resource: string; action: string }[]>;
   ownedDomains: Map<AccountId, Set<number>>;
-  groups: Map<number, FakeGroup>;
+  groups: Map<GroupId, FakeGroup>;
   nextGroupId: number;
-  defaultGroupId: number | null;
+  defaultGroupId: GroupId | null;
 }
 
 export function createFakeStore() {
   return {
-    accountGroups: new Map<AccountId, Set<number>>(),
-    globalPermissions: new Map<number, { resource: string; action: string }[]>(),
-    domainPermissions: new Map<number, { domainId: number; resource: string; action: string }[]>(),
+    accountGroups: new Map<AccountId, Set<GroupId>>(),
+    globalPermissions: new Map<GroupId, { resource: string; action: string }[]>(),
+    domainPermissions: new Map<GroupId, { domainId: number; resource: string; action: string }[]>(),
     ownedDomains: new Map<AccountId, Set<number>>(),
-    groups: new Map<number, FakeGroup>(),
+    groups: new Map<GroupId, FakeGroup>(),
     nextGroupId: 1,
-    defaultGroupId: null as number | null,
+    defaultGroupId: null as GroupId | null,
   };
 }
 
-export function seedGlobalPermission(store: FakeStore, groupId: number, resource: string, action: string) {
+export function seedGlobalPermission(store: FakeStore, groupId: GroupId, resource: string, action: string) {
   const list = store.globalPermissions.get(groupId) ?? [];
   list.push({ resource, action });
   store.globalPermissions.set(groupId, list);
 }
 
-export function seedDomainPermission(store: FakeStore, groupId: number, domainId: number, resource: string, action: string) {
+export function seedDomainPermission(store: FakeStore, groupId: GroupId, domainId: number, resource: string, action: string) {
   const list = store.domainPermissions.get(groupId) ?? [];
   list.push({ domainId, resource, action });
   store.domainPermissions.set(groupId, list);
 }
 
-export function seedGroupMembership(store: FakeStore, accountId: AccountId, groupId: number) {
-  const set = store.accountGroups.get(accountId) ?? new Set<number>();
+export function seedGroupMembership(store: FakeStore, accountId: AccountId, groupId: GroupId) {
+  const set = store.accountGroups.get(accountId) ?? new Set<GroupId>();
   set.add(groupId);
   store.accountGroups.set(accountId, set);
 }
@@ -65,10 +65,10 @@ export function createFakeData(store: FakeStore) {
     findAccountGroupIds(accountId: AccountId) {
       return Promise.resolve([...(store.accountGroups.get(accountId) ?? [])]);
     },
-    findGlobalPermissions(groupId: number) {
+    findGlobalPermissions(groupId: GroupId) {
       return Promise.resolve(store.globalPermissions.get(groupId) ?? []);
     },
-    findDomainPermissions(groupId: number) {
+    findDomainPermissions(groupId: GroupId) {
       return Promise.resolve(store.domainPermissions.get(groupId) ?? []);
     },
     findOwnedDomainIds(accountId: AccountId) {
@@ -93,7 +93,7 @@ export function createFakeData(store: FakeStore) {
         }))
       );
     },
-    findGroup(groupId: number) {
+    findGroup(groupId: GroupId) {
       const g = store.groups.get(groupId);
       if (!g) return Promise.resolve(null);
       return Promise.resolve({
@@ -105,7 +105,7 @@ export function createFakeData(store: FakeStore) {
         createdAt: g.createdAt,
       });
     },
-    updateGroup(groupId: number, changes: { name?: string; description?: string }) {
+    updateGroup(groupId: GroupId, changes: { name?: string; description?: string }) {
       const g = store.groups.get(groupId);
       if (g) {
         if (changes.name !== undefined) g.name = changes.name;
@@ -113,12 +113,12 @@ export function createFakeData(store: FakeStore) {
       }
       return Promise.resolve();
     },
-    setGroupOwner(groupId: number, accountId: AccountId | null) {
+    setGroupOwner(groupId: GroupId, accountId: AccountId | null) {
       const g = store.groups.get(groupId);
       if (g) g.ownerId = accountId;
       return Promise.resolve();
     },
-    deleteGroup(groupId: number) {
+    deleteGroup(groupId: GroupId) {
       store.groups.delete(groupId);
       store.globalPermissions.delete(groupId);
       store.domainPermissions.delete(groupId);
@@ -126,11 +126,11 @@ export function createFakeData(store: FakeStore) {
       return Promise.resolve();
     },
 
-    setGroupGlobalPermissions(groupId: number, permissions: { resource: string; action: string }[]) {
+    setGroupGlobalPermissions(groupId: GroupId, permissions: { resource: string; action: string }[]) {
       store.globalPermissions.set(groupId, permissions);
       return Promise.resolve();
     },
-    setGroupDomainPermissions(groupId: number, permissions: { domainId: number; resource: string; action: string }[]) {
+    setGroupDomainPermissions(groupId: GroupId, permissions: { domainId: number; resource: string; action: string }[]) {
       store.domainPermissions.set(groupId, permissions);
       return Promise.resolve();
     },
@@ -142,23 +142,23 @@ export function createFakeData(store: FakeStore) {
       return Promise.resolve(count);
     },
 
-    assignAccountToGroup(accountId: AccountId, groupId: number) {
-      const set = store.accountGroups.get(accountId) ?? new Set<number>();
+    assignAccountToGroup(accountId: AccountId, groupId: GroupId) {
+      const set = store.accountGroups.get(accountId) ?? new Set<GroupId>();
       set.add(groupId);
       store.accountGroups.set(accountId, set);
       return Promise.resolve();
     },
-    findGroupMemberIds(groupId: number) {
+    findGroupMemberIds(groupId: GroupId) {
       return Promise.resolve(
         [...store.accountGroups.entries()].filter(([, s]) => s.has(groupId)).map(([accountId]) => accountId)
       );
     },
-    removeAccountFromGroup(accountId: AccountId, groupId: number) {
+    removeAccountFromGroup(accountId: AccountId, groupId: GroupId) {
       store.accountGroups.get(accountId)?.delete(groupId);
       return Promise.resolve();
     },
 
-    setDefaultGroup(groupId: number | null) {
+    setDefaultGroup(groupId: GroupId | null) {
       if (store.defaultGroupId !== null) {
         const prev = store.groups.get(store.defaultGroupId);
         if (prev) prev.isDefault = false;
