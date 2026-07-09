@@ -1,4 +1,4 @@
-import type { CustomPermissionGuardConfig } from "./types.js";
+import type { CustomPermissionGuardConfig, GroupId } from "./types.js";
 
 // Access-prerequisite cleanup, grouped by resource: any resource without an
 // "access" entry in THIS write loses all its other entries too — never an
@@ -41,7 +41,7 @@ function stripOrphanedDomain(permissions: { domainId: number; resource: string; 
 // evaluate a group deletion the same way as a full-wipe permission write.
 export async function assertLockoutSafe(
   config: CustomPermissionGuardConfig,
-  groupId: number,
+  groupId: GroupId,
   newGlobalPermissions: { resource: string; action: string }[]
 ) {
   const protectedEntries = config.lockoutProtected ?? [];
@@ -64,21 +64,21 @@ export async function assertLockoutSafe(
 
 export function createGroupPermissions(config: CustomPermissionGuardConfig) {
   return {
-    async findGroupGlobalPermissions(groupId: number) {
+    async findGroupGlobalPermissions(groupId: GroupId) {
       return config.data.findGlobalPermissions(groupId);
     },
 
-    async findGroupDomainPermissions(groupId: number) {
+    async findGroupDomainPermissions(groupId: GroupId) {
       return config.data.findDomainPermissions(groupId);
     },
 
-    async setGroupGlobalPermissions(groupId: number, permissions: { resource: string; action: string }[]) {
+    async setGroupGlobalPermissions(groupId: GroupId, permissions: { resource: string; action: string }[]) {
       const cleaned = stripOrphanedGlobal(permissions);
       await assertLockoutSafe(config, groupId, cleaned);
       await config.data.setGroupGlobalPermissions(groupId, cleaned);
     },
 
-    async setGroupDomainPermissions(groupId: number, permissions: { domainId: number; resource: string; action: string }[]) {
+    async setGroupDomainPermissions(groupId: GroupId, permissions: { domainId: number; resource: string; action: string }[]) {
       const cleaned = stripOrphanedDomain(permissions);
       await config.data.setGroupDomainPermissions(groupId, cleaned);
     },

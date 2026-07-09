@@ -32,6 +32,7 @@ export type {
   DomainResourceSchema,
   GlobalResourceSchema,
   GroupDetail,
+  GroupId,
   GroupSummary,
 } from "./types.js";
 export { CustomPermissionGuardConfigError } from "./errors.js";
