@@ -6,12 +6,46 @@ resources, throw-on-forbidden semantics, zero coupling to any framework or datab
 ## What is this package?
 
 A permission engine you configure, not a framework you adopt. It never opens an HTTP route,
-never touches a database, and never reads `process.env` — the consumer wires all three. Two
+never touches a database, and never reads `process.env`, the consumer wires all three. Two
 independent resource tiers (`global`, `domain`), each with its own `access`-gated
 read/create/modify/delete rules; group-based membership with OR/union semantics across
 multiple groups; domain ownership and global→domain "bridge" bypasses; a `dependsOn` gate for
 cross-resource prerequisites, available at both tiers; and full group entity management (CRUD, membership, default
 group, permission grants) with a built-in anti-lockout invariant.
+
+## Granular ACL, handled for you
+
+You declare your resources and the actions each one allows. The library does the rest: it
+resolves a caller's effective permissions across every group they belong to (a union, never an
+intersection), enforces `access` as the prerequisite of every other action, walks `dependsOn`
+prerequisites recursively, applies the domain-ownership and global→domain bridge bypasses, and
+refuses any write that would lock the last administrator out. Your code makes a single call,
+`assertOne` or `assertAll`, and it either returns or throws. No `if (role === "admin")`
+sprinkled through your controllers, no authorization logic duplicated per route.
+
+**Granular means granular.** Actions are not a fixed `read`/`write` set you have to bend your
+domain into. Every capability you can name becomes a first-class permission (`rotate-dkim-key`,
+`reset-rspamd-thresholds`, `invite-account`, `transfer-domain-ownership`), as many as your
+product has, on as many resources as you need, across two independent tiers (`global` and
+per-`domain`). The engine treats an arbitrary action string exactly like any other: there is no
+built-in vocabulary to fight, and adding a permission is a one-line change to a config array,
+never a migration of the engine itself.
+
+**Nothing of yours leaves your hands.** It opens no socket, touches no database, and reads no
+`process.env`, with zero runtime dependencies. Every lookup is SQL you own and pass in, so a
+check is a handful of indexed reads plus pure in-memory set logic, and you keep full control of
+caching, pooling and query shape, and the authorization layer adds no I/O of its own.
+
+The two grids below come from a real product built on this engine, one screenshot per tier. Each
+resource exposes its own named actions, and every action is gated behind `access`.
+
+### Global tier
+
+![Global-tier permission grid: every global resource with its own named actions, all gated behind access](./docs/images/permissions-global.png)
+
+### Per-domain tier
+
+![Per-domain permission grid: the same model scoped to a single domain](./docs/images/permissions-domain.png)
 
 ## Install
 
@@ -21,12 +55,12 @@ npm i @naskot/custom-permission-guard
 
 ## Quick start
 
-Every config field, shown at once — nothing hidden behind "see the docs for the rest":
+Every config field, shown at once, nothing hidden behind "see the docs for the rest":
 
 ```ts
 import mysql from "mysql2/promise";
 import { createCustomPermissionGuard } from "@naskot/custom-permission-guard";
-import { createSqlData } from "./sql-data.js"; // full source below — raw SQL via mysql2, no ORM
+import { createSqlData } from "./sql-data.js"; // full source below, raw SQL via mysql2, no ORM
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -41,7 +75,7 @@ const customPermissionGuard = createCustomPermissionGuard({
     throw new Error(reason);
   },
   // "single": your own schema enforces 1 group per account (e.g. a
-  // UNIQUE(account_id) constraint on your membership table) — the library
+  // UNIQUE(account_id) constraint on your membership table), the library
   // adds no extra logic for either mode, it just documents the invariant.
   groupMode: "multiple",
   // Enforcement kill-switch, checked BEFORE schemas: disable a tier+dimension
@@ -57,14 +91,14 @@ const customPermissionGuard = createCustomPermissionGuard({
   schemas: {
     global: {
       groups: { rules: ["access", "read", "create", "modify", "delete"] },
-      // "projects" is an invented, generic example resource — swap in
+      // "projects" is an invented, generic example resource, swap in
       // whatever your own app actually manages.
       projects: {
         rules: ["access", "read", "create", "modify", "delete"],
         custom: { "2fa": (accountId) => hasTwoFactorEnabled(accountId) }, // your own lookup
       },
       // dependsOn works at the global tier too: "billing" is never granted
-      // without projects:access first — checked recursively, same as the
+      // without projects:access first, checked recursively, same as the
       // domain tier's tasks/workspace pair below.
       billing: {
         rules: ["access", "read"],
@@ -76,7 +110,7 @@ const customPermissionGuard = createCustomPermissionGuard({
       // "workspace" on ANY domainId, without a dedicated per-domain row.
       workspace: { rules: ["access", "read", "create", "modify", "delete"], bridgeFromGlobal: "projects" },
       // dependsOn: "tasks" is never granted on a project without
-      // workspace:access on that SAME project first — checked recursively,
+      // workspace:access on that SAME project first, checked recursively,
       // so it also benefits from workspace's own ownership/bridge bypasses.
       tasks: {
         rules: ["access", "read", "create", "modify", "delete"],
@@ -84,7 +118,7 @@ const customPermissionGuard = createCustomPermissionGuard({
       },
     },
   },
-  // Every callback is raw SQL you own — the library never touches a
+  // Every callback is raw SQL you own, the library never touches a
   // database itself. Full source of createSqlData is below.
   data: createSqlData(pool),
 });
@@ -92,7 +126,7 @@ const customPermissionGuard = createCustomPermissionGuard({
 await customPermissionGuard.assertOne.global(accountId, "projects", { acrud: ["create"] });
 ```
 
-`createSqlData` — the library's entire `data` contract implemented as plain
+`createSqlData`, the library's entire `data` contract implemented as plain
 [`mysql2`](https://github.com/sidorares/node-mysql2) queries, no ORM, against the reference schema in
 [`__PLAN/expected-custom-permission-guard/tables.sql`](../__PLAN/expected-custom-permission-guard/tables.sql):
 
@@ -284,9 +318,9 @@ export function createSqlData(pool: Pool) {
 
 ## API
 
-- `assertOne.{global,domain}` / `assertAll.{global,domain}.{acrud,custom}` — throw-on-forbidden
+- `assertOne.{global,domain}` / `assertAll.{global,domain}.{acrud,custom}`, throw-on-forbidden
   checks; `assertOne` is single-resource sugar over the batch `assertAll` primitives.
-- `getEffectivePermissions(accountId)` — read-only, never throws; real granted permissions for
+- `getEffectivePermissions(accountId)`, read-only, never throws; real granted permissions for
   UI consumption (nav gating, etc).
 - Group entity CRUD: `listGroups`, `findGroup`, `createGroup`, `updateGroup`, `deleteGroup`,
   `setGroupOwner`.
@@ -295,7 +329,7 @@ export function createSqlData(pool: Pool) {
   access-prerequisite cleanup and anti-lockout on the global tier).
 - Membership: `assignAccountToGroup`, `removeAccountFromGroup`, `findGroupMemberIds`.
 - Default group: `setDefaultGroup`, `onAccountCreated` (auto-assign connector).
-- `CustomPermissionGuardConfigError` — thrown for a misconfigured `resource`/`action`/
+- `CustomPermissionGuardConfigError`, thrown for a misconfigured `resource`/`action`/
   `customName` or a disabled `authorizedPermissions` dimension, always distinct from a real
   `onForbidden` denial.
 
@@ -309,8 +343,8 @@ for the full interface and design rationale.
 
 ## Proof of concept
 
-[`poc/`](./poc) ships 4 runnable apps — 2 Express, 2 NestJS, one pair per framework configured
-`groupMode: "single"` and the other `"multiple"` — that seed fake accounts/groups/permissions
+[`poc/`](./poc) ships 4 runnable apps, 2 Express, 2 NestJS, one pair per framework configured
+`groupMode: "single"` and the other `"multiple"`, that seed fake accounts/groups/permissions
 against a real MariaDB and prove allow/deny behavior end to end, no HTTP routes required. See
 [`poc/README.md`](./poc/README.md) to run it and read the results.
 
@@ -327,10 +361,10 @@ npm run build
 
 ## Notes
 
-- Configuration rule: never read `process.env` inside the library — read env values in the
+- Configuration rule: never read `process.env` inside the library, read env values in the
   app's own service/provider layer and pass a plain config object in.
 - The library has zero runtime dependencies and never opens a database connection or an HTTP
   route itself; every `data.*` callback is SQL/ORM code the consumer owns.
 - Anti-escalation (a caller can only grant permissions it already holds) and any root/superuser
-  bypass are both explicitly **out of scope** — compose them from `assertOne`/`assertAll` in
+  bypass are both explicitly **out of scope**, compose them from `assertOne`/`assertAll` in
   your own project, never as a library config flag.
