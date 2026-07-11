@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## [Unreleased] - yyyy-mm-dd
+
+- Add per-group protection: `GroupSummary`/`GroupDetail` gain a `protected` flag (surfaced by
+  `listGroups`/`findGroup`), `setGroupProtected(groupId, isProtected)` toggles it, and `deleteGroup`
+  refuses a protected group via `onForbidden` with no exception. The lib does not decide who may
+  toggle the flag (e.g. a root-only rule), that stays the consumer's policy, and a consumer with a
+  raw delete path of its own must honour the flag there too. Two new `data` callbacks back it,
+  `findGroupProtected` (read) and `setGroupProtected` (write). Covered by new unit tests
+  (`test/unit/groups.test.ts`) and a new proof scenario (S22 in `poc/shared/scenarios.ts`), with the
+  integration/POC SQL schema and the fake/SQL adapters updated for the `is_protected` column.
+- Add the `utils` helper namespace (`src/index.ts`/`src/types.ts`), kept apart from the core
+  `assertOne`/`assertAll`/group surface so an app that never needs it can ignore it. It carries
+  `check.{global,domain}(accountId, resource, action)`, the non-throwing boolean sibling of
+  `assertOne` (same ownership/bridge/`dependsOn` evaluation, `false` instead of a denial; a
+  misconfiguration still throws `CustomPermissionGuardConfigError`), and
+  `findUnheldPermissions(accountId, { global, domain })`, which returns the subset of the requested
+  permissions the account does not hold, the primitive for anti-escalation. Both are backed by new
+  non-throwing evaluators in `src/assert.ts` that leave the throwing `assertOne`/`assertAll` path
+  untouched.
+- Add `utils.diffPermissions(before, after)` (`src/permission-diff.ts`), a pure set difference that
+  returns the `{ added, removed }` rows of a full-replace edit per tier, plus the exported types
+  `PermissionSet`/`PermissionSetDiff`. Paired with `findUnheldPermissions` it lets a consumer gate
+  anti-escalation on the change only, so an untouched permission the actor lacks no longer blocks an
+  otherwise legitimate edit. It reports facts (added and removed separately), never policy: whether
+  revoking also requires holding is the consumer's call.
+- Cover the helpers with new unit tests (`test/unit/permission-diff.test.ts`, extended
+  `test/unit/assert.test.ts` and `test/unit/index.test.ts`) and 3 new proof scenarios (S19/S20/S21
+  in `poc/shared/scenarios.ts`, run by all 4 POC apps). Document them in the README and the
+  NestJS/Express integration guides, including a worked anti-escalation `AntiEscalationService`
+  example.
+
 ## [1.2.0] - 2026-07-09
 
 - Widen `GroupId` (new exported type, `number | string`, mirroring `AccountId`) across the
