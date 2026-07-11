@@ -3,12 +3,13 @@ import { mergeWithDefaults } from "./defaults.js";
 import { createGetEffectivePermissions } from "./effective-permissions.js";
 import { createGroupPermissions } from "./group-permissions.js";
 import { createGroups } from "./groups.js";
+import { diffPermissions } from "./permission-diff.js";
 import type { CustomPermissionGuard, CustomPermissionGuardUserConfig } from "./types.js";
 
 export function createCustomPermissionGuard(userConfig: CustomPermissionGuardUserConfig) {
   const config = mergeWithDefaults(userConfig);
 
-  const { assertOne, assertAll } = createAssertions(config);
+  const { assertOne, assertAll, check, findUnheldPermissions } = createAssertions(config);
   const getEffectivePermissions = createGetEffectivePermissions(config);
   const groups = createGroups(config);
   const groupPermissions = createGroupPermissions(config);
@@ -16,6 +17,7 @@ export function createCustomPermissionGuard(userConfig: CustomPermissionGuardUse
   return {
     assertOne,
     assertAll,
+    utils: { check, findUnheldPermissions, diffPermissions },
     getEffectivePermissions,
     ...groups,
     ...groupPermissions,
@@ -34,6 +36,8 @@ export type {
   GroupDetail,
   GroupId,
   GroupSummary,
+  PermissionSet,
+  PermissionSetDiff,
 } from "./types.js";
 export { CustomPermissionGuardConfigError } from "./errors.js";
 export { defaultValueCustomPermissionGuard } from "./defaults.js";

@@ -261,4 +261,88 @@ export async function runScenarios(guard: CustomPermissionGuard, pool: Pool, gro
     await guard.assignAccountToGroup(acc, groupId);
     await guard.assertOne.global(acc, "billing", { acrud: ["read"] });
   });
+
+  await step("S19 check returns booleans and never throws, including an unmet dependsOn", async () => {
+    const acc = uniqueId("acc");
+    await seedAccount(pool, acc);
+    const groupId = await guard.createGroup(uniqueId("group"));
+    await guard.setGroupGlobalPermissions(groupId, [
+      { resource: "projects", action: "access" },
+      { resource: "projects", action: "read" },
+    ]);
+    await guard.assignAccountToGroup(acc, groupId);
+    assertEq(await guard.utils.check.global(acc, "projects", "read"), true, "S19 held");
+    assertEq(await guard.utils.check.global(acc, "projects", "delete"), false, "S19 not held");
+
+    // billing dependsOn projects:access. This second account has billing rows
+    // but no projects:access -> check returns false, where assertOne would throw.
+    const acc2 = uniqueId("acc");
+    await seedAccount(pool, acc2);
+    const group2 = await guard.createGroup(uniqueId("group"));
+    await guard.setGroupGlobalPermissions(group2, [
+      { resource: "billing", action: "access" },
+      { resource: "billing", action: "read" },
+    ]);
+    await guard.assignAccountToGroup(acc2, group2);
+    assertEq(await guard.utils.check.global(acc2, "billing", "read"), false, "S19 unmet dependsOn -> false, not a throw");
+  });
+
+  await step("S20 findUnheldPermissions returns exactly the permissions the account lacks (anti-escalation)", async () => {
+    const granter = uniqueId("granter");
+    await seedAccount(pool, granter);
+    const groupId = await guard.createGroup(uniqueId("group"));
+    await guard.setGroupGlobalPermissions(groupId, [
+      { resource: "projects", action: "access" },
+      { resource: "projects", action: "read" },
+    ]);
+    await guard.assignAccountToGroup(granter, groupId);
+
+    // Holds projects:read, lacks projects:delete -> only delete comes back.
+    const unheld = await guard.utils.findUnheldPermissions(granter, {
+      global: [
+        { resource: "projects", action: "read" },
+        { resource: "projects", action: "delete" },
+      ],
+    });
+    assertEq(unheld.global.length, 1, "S20 exactly one global permission is unheld");
+    assertEq(unheld.global[0]?.action, "delete", "S20 the unheld permission is projects:delete");
+    assertEq(unheld.domain.length, 0, "S20 no domain permission is unheld");
+
+    // Requiring only what it holds -> both arrays empty (may grant it all).
+    const none = await guard.utils.findUnheldPermissions(granter, {
+      global: [{ resource: "projects", action: "read" }],
+    });
+    assertTrue(none.global.length === 0 && none.domain.length === 0, "S20 holds all required -> empty");
+  });
+
+  await step(
+    "S21 diffPermissions splits a full-replace edit into added and removed (anti-escalation on the change)",
+    async () => {
+      // Pure computation, no DB: the companion to S20. On an edit, only the delta
+      // (added union removed) should face the S20 holds check, so an untouched
+      // permission the actor lacks never blocks the edit.
+      const before = {
+        global: [
+          { resource: "projects", action: "access" },
+          { resource: "billing", action: "access" }, // actor may not hold this; left untouched below
+        ],
+      };
+      const after = {
+        global: [
+          { resource: "projects", action: "access" }, // untouched
+          { resource: "billing", action: "access" }, // untouched
+          { resource: "projects", action: "read" }, // added
+        ],
+      };
+      const diff = guard.utils.diffPermissions(before, after);
+      assertEq(diff.added.global.length, 1, "S21 exactly one permission added");
+      assertEq(diff.added.global[0]?.action, "read", "S21 the added permission is projects:read");
+      assertEq(diff.removed.global.length, 0, "S21 nothing removed");
+      // billing:access is in both sets -> excluded from the delta entirely.
+      assertTrue(
+        !diff.added.global.some((p) => p.resource === "billing") && !diff.removed.global.some((p) => p.resource === "billing"),
+        "S21 the untouched billing permission is not in the delta"
+      );
+    }
+  );
 }

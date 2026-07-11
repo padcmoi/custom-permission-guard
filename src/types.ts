@@ -59,6 +59,24 @@ export interface DomainResourceSchema {
   dependsOn?: { resource: string; action: string }[];
 }
 
+// Input/output of utils.diffPermissions. A permission set is what a full-replace
+// edit writes; the diff reports the rows added and removed, per tier.
+export interface PermissionSet {
+  global?: { resource: string; action: string }[];
+  domain?: { domainId: number; resource: string; action: string }[];
+}
+
+export interface PermissionSetDiff {
+  added: {
+    global: { resource: string; action: string }[];
+    domain: { domainId: number; resource: string; action: string }[];
+  };
+  removed: {
+    global: { resource: string; action: string }[];
+    domain: { domainId: number; resource: string; action: string }[];
+  };
+}
+
 export interface CustomPermissionGuard {
   assertOne: {
     global(accountId: AccountId, resource: string, requirements: { acrud?: string[]; custom?: string[] }): Promise<void>;
@@ -79,6 +97,44 @@ export interface CustomPermissionGuard {
       acrud(accountId: AccountId, domainId: number, requirements: AcrudRequirement[]): Promise<void>;
       custom(accountId: AccountId, domainId: number, requirements: CustomRequirement[]): Promise<void>;
     };
+  };
+
+  // Optional convenience helpers, deliberately namespaced apart from the core
+  // assert*/group/membership surface so an app that never needs them can ignore
+  // them. Nothing here is required to run the guard.
+  utils: {
+    // Non-throwing acrud query, the boolean sibling of assertOne: `true` when
+    // the account effectively holds resource.action (same ownership/bridge/
+    // dependsOn evaluation), `false` otherwise. A misconfiguration still throws
+    // CustomPermissionGuardConfigError.
+    check: {
+      global(accountId: AccountId, resource: string, action: string): Promise<boolean>;
+      domain(accountId: AccountId, domainId: number, resource: string, action: string): Promise<boolean>;
+    };
+
+    // Anti-escalation primitive: returns the subset of `required` the account
+    // does NOT hold (both arrays empty => it holds them all). Lets a consumer
+    // enforce "you may only grant permissions you hold yourself" without the lib
+    // knowing anything about grouping, ownership of the grant, or who counts as
+    // root -- the consumer owns that decision (and any superuser bypass) here.
+    findUnheldPermissions(
+      accountId: AccountId,
+      required: {
+        global?: { resource: string; action: string }[];
+        domain?: { domainId: number; resource: string; action: string }[];
+      }
+    ): Promise<{
+      global: { resource: string; action: string }[];
+      domain: { domainId: number; resource: string; action: string }[];
+    }>;
+
+    // Pure set difference between a group's current permission set and the one a
+    // full-replace edit would write: which rows are added, which removed, per
+    // tier. Pair it with findUnheldPermissions to enforce anti-escalation on the
+    // CHANGE only (an untouched permission the actor lacks passes through). It
+    // reports facts, not policy: whether revoking a permission you lack is
+    // allowed is yours to decide, hence added/removed are returned separately.
+    diffPermissions(before: PermissionSet, after: PermissionSet): PermissionSetDiff;
   };
 
   getEffectivePermissions(accountId: AccountId): Promise<{
