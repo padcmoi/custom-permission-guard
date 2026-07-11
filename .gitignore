@@ -9,3 +9,4 @@ coverage/
 
 # Ignore npm pack file
 *.tgz
+!naskot-custom-permission-guard-1.3.0.tgz
