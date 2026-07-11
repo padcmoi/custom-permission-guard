@@ -2,6 +2,14 @@
 
 ## [Unreleased] - yyyy-mm-dd
 
+- Add per-group protection: `GroupSummary`/`GroupDetail` gain a `protected` flag (surfaced by
+  `listGroups`/`findGroup`), `setGroupProtected(groupId, isProtected)` toggles it, and `deleteGroup`
+  refuses a protected group via `onForbidden` with no exception. The lib does not decide who may
+  toggle the flag (e.g. a root-only rule), that stays the consumer's policy, and a consumer with a
+  raw delete path of its own must honour the flag there too. Two new `data` callbacks back it,
+  `findGroupProtected` (read) and `setGroupProtected` (write). Covered by new unit tests
+  (`test/unit/groups.test.ts`) and a new proof scenario (S22 in `poc/shared/scenarios.ts`), with the
+  integration/POC SQL schema and the fake/SQL adapters updated for the `is_protected` column.
 - Add the `utils` helper namespace (`src/index.ts`/`src/types.ts`), kept apart from the core
   `assertOne`/`assertAll`/group surface so an app that never needs it can ignore it. It carries
   `check.{global,domain}(accountId, resource, action)`, the non-throwing boolean sibling of

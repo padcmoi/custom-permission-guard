@@ -5,6 +5,7 @@ interface FakeGroup {
   description: string | null;
   ownerId: AccountId | null;
   isDefault: boolean;
+  protected: boolean;
   createdAt: Date;
 }
 
@@ -77,7 +78,7 @@ export function createFakeData(store: FakeStore) {
 
     createGroup(name: string) {
       const id = store.nextGroupId++;
-      store.groups.set(id, { name, description: null, ownerId: null, isDefault: false, createdAt: new Date() });
+      store.groups.set(id, { name, description: null, ownerId: null, isDefault: false, protected: false, createdAt: new Date() });
       return Promise.resolve(id);
     },
     listGroups() {
@@ -88,6 +89,7 @@ export function createFakeData(store: FakeStore) {
           description: g.description,
           ownerId: g.ownerId,
           isDefault: g.isDefault,
+          protected: g.protected,
           memberCount: [...store.accountGroups.values()].filter((s) => s.has(id)).length,
           createdAt: g.createdAt,
         }))
@@ -102,6 +104,7 @@ export function createFakeData(store: FakeStore) {
         description: g.description,
         ownerId: g.ownerId,
         isDefault: g.isDefault,
+        protected: g.protected,
         createdAt: g.createdAt,
       });
     },
@@ -116,6 +119,14 @@ export function createFakeData(store: FakeStore) {
     setGroupOwner(groupId: GroupId, accountId: AccountId | null) {
       const g = store.groups.get(groupId);
       if (g) g.ownerId = accountId;
+      return Promise.resolve();
+    },
+    findGroupProtected(groupId: GroupId) {
+      return Promise.resolve(store.groups.get(groupId)?.protected ?? false);
+    },
+    setGroupProtected(groupId: GroupId, isProtected: boolean) {
+      const g = store.groups.get(groupId);
+      if (g) g.protected = isProtected;
       return Promise.resolve();
     },
     deleteGroup(groupId: GroupId) {

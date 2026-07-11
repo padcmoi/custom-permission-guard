@@ -20,6 +20,7 @@ CREATE TABLE \`groups\` (
   description TEXT         NULL,
   owner_id    VARCHAR(64)  NULL,
   is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_protected BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_groups_owner
     FOREIGN KEY (owner_id) REFERENCES accounts (id) ON DELETE SET NULL

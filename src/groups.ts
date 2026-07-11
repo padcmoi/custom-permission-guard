@@ -26,6 +26,14 @@ export function createGroups(config: CustomPermissionGuardConfig) {
     },
 
     async deleteGroup(groupId: GroupId) {
+      // Protection is absolute: a protected group is never deletable, by anyone.
+      // Unlike anti-lockout (which a consumer's root bypass may legitimately skip
+      // via its own raw path), this check has no exception, so a consumer with a
+      // raw delete escape hatch must honour it there too, since this guard only
+      // covers the calls that go through the lib.
+      if (await config.data.findGroupProtected(groupId)) {
+        config.onForbidden(`group ${String(groupId)} is protected and cannot be deleted`);
+      }
       // Equivalent to replacing this group's global permissions with [] —
       // same anti-lockout check a setGroupGlobalPermissions edit would get,
       // so deletion can't be used to route around the invariant.
@@ -35,6 +43,10 @@ export function createGroups(config: CustomPermissionGuardConfig) {
 
     async setGroupOwner(groupId: GroupId, accountId: AccountId | null) {
       await config.data.setGroupOwner(groupId, accountId);
+    },
+
+    async setGroupProtected(groupId: GroupId, isProtected: boolean) {
+      await config.data.setGroupProtected(groupId, isProtected);
     },
 
     async assignAccountToGroup(accountId: AccountId, groupId: GroupId) {

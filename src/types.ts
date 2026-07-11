@@ -22,6 +22,9 @@ export interface GroupSummary {
   description: string | null;
   ownerId: AccountId | null;
   isDefault: boolean;
+  // A protected group can never be deleted, by anyone (deleteGroup refuses it).
+  // Who may toggle the flag is the consumer's policy, not the lib's.
+  protected: boolean;
   memberCount: number;
   createdAt: Date;
 }
@@ -32,6 +35,7 @@ export interface GroupDetail {
   description: string | null;
   ownerId: AccountId | null;
   isDefault: boolean;
+  protected: boolean;
   createdAt: Date;
 }
 
@@ -146,8 +150,12 @@ export interface CustomPermissionGuard {
   findGroup(groupId: GroupId): Promise<GroupDetail | null>;
   createGroup(name: string): Promise<GroupId>;
   updateGroup(groupId: GroupId, changes: { name?: string; description?: string }): Promise<void>;
+  // Refuses (via onForbidden) when the group is protected, otherwise deletes.
   deleteGroup(groupId: GroupId): Promise<void>;
   setGroupOwner(groupId: GroupId, accountId: AccountId | null): Promise<void>;
+  // Toggle the protection flag. Absolute against deletion once set; the lib does
+  // not gate WHO may call this (e.g. root-only), that stays the consumer's job.
+  setGroupProtected(groupId: GroupId, isProtected: boolean): Promise<void>;
 
   findGroupGlobalPermissions(groupId: GroupId): Promise<{ resource: string; action: string }[]>;
   findGroupDomainPermissions(groupId: GroupId): Promise<{ domainId: number; resource: string; action: string }[]>;
@@ -207,6 +215,10 @@ export interface CustomPermissionGuardConfig {
     updateGroup(groupId: GroupId, changes: { name?: string; description?: string }): Promise<void>;
     setGroupOwner(groupId: GroupId, accountId: AccountId | null): Promise<void>;
     deleteGroup(groupId: GroupId): Promise<void>;
+    // Read/write the per-group protection flag. findGroupProtected backs the
+    // deleteGroup guard; setGroupProtected persists a toggle.
+    findGroupProtected(groupId: GroupId): Promise<boolean>;
+    setGroupProtected(groupId: GroupId, isProtected: boolean): Promise<void>;
 
     setGroupGlobalPermissions(groupId: GroupId, permissions: { resource: string; action: string }[]): Promise<void>;
     setGroupDomainPermissions(

@@ -345,4 +345,16 @@ export async function runScenarios(guard: CustomPermissionGuard, pool: Pool, gro
       );
     }
   );
+
+  await step("S22 a protected group cannot be deleted by anyone, until protection is lifted", async () => {
+    const groupId = await guard.createGroup(uniqueId("system"));
+    await guard.setGroupProtected(groupId, true);
+    assertEq((await guard.findGroup(groupId))?.protected, true, "S22 protection flag is set and surfaced on read");
+    await assertRejects(() => guard.deleteGroup(groupId), PermissionDeniedError, "S22 delete refused while protected");
+    assertTrue((await guard.findGroup(groupId)) !== null, "S22 the group still exists");
+
+    await guard.setGroupProtected(groupId, false);
+    await guard.deleteGroup(groupId);
+    assertEq(await guard.findGroup(groupId), null, "S22 deletable once protection is lifted");
+  });
 }

@@ -337,7 +337,10 @@ export function createSqlData(pool: Pool) {
 - `getEffectivePermissions(accountId)`, read-only, never throws; real granted permissions for
   UI consumption (nav gating, etc).
 - Group entity CRUD: `listGroups`, `findGroup`, `createGroup`, `updateGroup`, `deleteGroup`,
-  `setGroupOwner`.
+  `setGroupOwner`, `setGroupProtected`. A group with `protected: true` (surfaced on `listGroups`/
+  `findGroup`) can never be deleted: `deleteGroup` refuses it via `onForbidden`, with no exception.
+  The lib does not decide WHO may toggle the flag (e.g. a root-only rule), that stays the
+  consumer's policy; a consumer with its own raw delete path must honour the flag there too.
 - Group permission grants: `findGroupGlobalPermissions`, `findGroupDomainPermissions`,
   `setGroupGlobalPermissions`, `setGroupDomainPermissions` (full replace, with write-time
   access-prerequisite cleanup and anti-lockout on the global tier).
