@@ -37,6 +37,26 @@ interface CustomPermissionGuard {
       ): Promise<void>;
     };
   };
+  // Optional helpers, namespaced apart from the core surface.
+  utils: {
+    check: {
+      global(accountId: number | string, resource: string, action: string): Promise<boolean>;
+      domain(accountId: number | string, domainId: number, resource: string, action: string): Promise<boolean>;
+    };
+    findUnheldPermissions(
+      accountId: number | string,
+      required: {
+        global?: { resource: string; action: string }[];
+        domain?: { domainId: number; resource: string; action: string }[];
+      }
+    ): Promise<{
+      global: { resource: string; action: string }[];
+      domain: { domainId: number; resource: string; action: string }[];
+    }>;
+    // { added, removed } per tier; pair with findUnheldPermissions to gate an
+    // edit on its delta only. See service.md for the full PermissionSet shape.
+    diffPermissions(before: PermissionSet, after: PermissionSet): PermissionSetDiff;
+  };
   getEffectivePermissions(accountId: number | string): Promise<{
     global: { resource: string; action: string }[];
     domain: { domainId: number; resource: string; action: string }[];

@@ -320,10 +320,27 @@ export function createSqlData(pool: Pool) {
 
 - `assertOne.{global,domain}` / `assertAll.{global,domain}.{acrud,custom}`, throw-on-forbidden
   checks; `assertOne` is single-resource sugar over the batch `assertAll` primitives.
+- `utils`, an optional helper namespace kept apart from the core surface above (an app that never
+  needs them can ignore it):
+  - `utils.check.{global,domain}(...)`, the non-throwing boolean sibling of `assertOne`: `true`
+    when the account holds `resource.action` (same ownership/bridge/dependsOn evaluation), `false`
+    otherwise. A misconfiguration still throws `CustomPermissionGuardConfigError`.
+  - `utils.findUnheldPermissions(accountId, { global, domain })`, the anti-escalation primitive:
+    returns the subset of the requested permissions the account does NOT hold (both arrays empty
+    means it holds them all). Build "you may only grant what you hold yourself" on top of it, the
+    lib never decides who may grant, nor who is root (see Notes).
+  - `utils.diffPermissions(before, after)`, the companion for a full-replace EDIT: returns the rows
+    `{ added, removed }` that the edit changes, per tier. Feed the changed rows to
+    `findUnheldPermissions` so anti-escalation applies to the CHANGE only, an untouched permission
+    the actor lacks then passes through instead of blocking the whole save. It reports facts, not
+    policy: added and removed are separate so you decide whether revoking also requires holding.
 - `getEffectivePermissions(accountId)`, read-only, never throws; real granted permissions for
   UI consumption (nav gating, etc).
 - Group entity CRUD: `listGroups`, `findGroup`, `createGroup`, `updateGroup`, `deleteGroup`,
-  `setGroupOwner`.
+  `setGroupOwner`, `setGroupProtected`. A group with `protected: true` (surfaced on `listGroups`/
+  `findGroup`) can never be deleted: `deleteGroup` refuses it via `onForbidden`, with no exception.
+  The lib does not decide WHO may toggle the flag (e.g. a root-only rule), that stays the
+  consumer's policy; a consumer with its own raw delete path must honour the flag there too.
 - Group permission grants: `findGroupGlobalPermissions`, `findGroupDomainPermissions`,
   `setGroupGlobalPermissions`, `setGroupDomainPermissions` (full replace, with write-time
   access-prerequisite cleanup and anti-lockout on the global tier).
@@ -365,6 +382,8 @@ npm run build
   app's own service/provider layer and pass a plain config object in.
 - The library has zero runtime dependencies and never opens a database connection or an HTTP
   route itself; every `data.*` callback is SQL/ORM code the consumer owns.
-- Anti-escalation (a caller can only grant permissions it already holds) and any root/superuser
-  bypass are both explicitly **out of scope**, compose them from `assertOne`/`assertAll` in
-  your own project, never as a library config flag.
+- Anti-escalation (a caller can only grant permissions it already holds) is a POLICY the consumer
+  owns, but the lib hands you the primitive to enforce it: `utils.findUnheldPermissions(granterId, ...)`
+  returns what the granter lacks, so you throw, log or strip those rows yourself. What counts as a
+  grant, and any root/superuser bypass, stay **out of scope**, decide them around the call, never
+  as a library config flag.

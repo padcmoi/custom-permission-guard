@@ -137,3 +137,34 @@ describe("groups — deleteGroup respects lockoutProtected", () => {
     expect(await groups.findGroup(id)).toBeNull();
   });
 });
+
+describe("groups — protected group cannot be deleted", () => {
+  let store: FakeStore;
+  beforeEach(() => {
+    store = createFakeStore();
+  });
+
+  it("refuses to delete a protected group and surfaces the flag on read", async () => {
+    const groups = createGroups(testConfig(store));
+    const id = await groups.createGroup("system");
+    expect((await groups.findGroup(id))?.protected).toBe(false);
+
+    await groups.setGroupProtected(id, true);
+    expect((await groups.findGroup(id))?.protected).toBe(true);
+    expect((await groups.listGroups()).find((g) => g.id === id)?.protected).toBe(true);
+
+    await expect(groups.deleteGroup(id)).rejects.toBeInstanceOf(TestForbiddenError);
+    expect(await groups.findGroup(id)).not.toBeNull();
+  });
+
+  it("allows deletion again once protection is turned off", async () => {
+    const groups = createGroups(testConfig(store));
+    const id = await groups.createGroup("system");
+    await groups.setGroupProtected(id, true);
+    await expect(groups.deleteGroup(id)).rejects.toBeInstanceOf(TestForbiddenError);
+
+    await groups.setGroupProtected(id, false);
+    await expect(groups.deleteGroup(id)).resolves.toBeUndefined();
+    expect(await groups.findGroup(id)).toBeNull();
+  });
+});

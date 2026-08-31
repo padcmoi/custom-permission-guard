@@ -30,6 +30,7 @@ describe("createCustomPermissionGuard", () => {
     for (const method of [
       "assertOne",
       "assertAll",
+      "utils",
       "getEffectivePermissions",
       "listGroups",
       "findGroup",
@@ -49,6 +50,10 @@ describe("createCustomPermissionGuard", () => {
     ]) {
       expect(guard).toHaveProperty(method);
     }
+    // Optional helpers are namespaced under utils, apart from the core surface.
+    expect(guard.utils).toHaveProperty("check");
+    expect(guard.utils).toHaveProperty("findUnheldPermissions");
+    expect(guard.utils).toHaveProperty("diffPermissions");
   });
 
   it("wires group creation, permission grants and membership through to assertOne end to end", async () => {

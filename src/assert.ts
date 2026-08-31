@@ -166,6 +166,57 @@ async function assertSingleGlobalAcrud(
   if (!granted) config.onForbidden(`missing global ${resource}.${action}`);
 }
 
+// Non-throwing twins of isGlobalAcrudGranted/isDomainAcrudGranted, feeding the
+// query API (check.*, findUnheldPermissions). Identical evaluation with ONE
+// deliberate difference: a missing dependsOn returns false here instead of
+// throwing via onForbidden. The assert path above must throw the DEPENDENCY's
+// own denial reason, a "held?" query must never throw a legitimate denial at
+// all -- so the two paths stay separate rather than one silently changing the
+// other's error messages. A genuine misconfiguration (unknown resource/action)
+// still throws CustomPermissionGuardConfigError from knownGlobalSchema, exactly
+// as the assert path does: a typo is never a legitimate "not held".
+async function evalGlobalAcrudHeld(
+  config: CustomPermissionGuardConfig,
+  cache: CheckCache,
+  accountId: AccountId,
+  resource: string,
+  action: string
+) {
+  const schema = knownGlobalSchema(config, resource, action);
+  if (schema.dependsOn) {
+    for (const dep of schema.dependsOn) {
+      if (!(await evalGlobalAcrudHeld(config, cache, accountId, dep.resource, dep.action))) return false;
+    }
+  }
+  return isGrantedByGroups(config, cache, "global", accountId, undefined, resource, requiredActionsFor(action));
+}
+
+async function evalDomainAcrudHeld(
+  config: CustomPermissionGuardConfig,
+  cache: CheckCache,
+  accountId: AccountId,
+  domainId: number,
+  resource: string,
+  action: string
+) {
+  const schema = knownDomainSchema(config, resource, action);
+
+  const ownedDomainIds = await config.data.findOwnedDomainIds(accountId);
+  if (ownedDomainIds.includes(domainId)) return true;
+
+  if (schema.bridgeFromGlobal) {
+    if (await evalGlobalAcrudHeld(config, cache, accountId, schema.bridgeFromGlobal, action)) return true;
+  }
+
+  if (schema.dependsOn) {
+    for (const dep of schema.dependsOn) {
+      if (!(await evalDomainAcrudHeld(config, cache, accountId, domainId, dep.resource, dep.action))) return false;
+    }
+  }
+
+  return isGrantedByGroups(config, cache, "domain", accountId, domainId, resource, requiredActionsFor(action));
+}
+
 async function assertSingleDomainAcrud(
   config: CustomPermissionGuardConfig,
   cache: CheckCache,
@@ -239,6 +290,20 @@ export interface Assertions {
       custom(accountId: AccountId, domainId: number, requirements: CustomRequirement[]): Promise<void>;
     };
   };
+  check: {
+    global(accountId: AccountId, resource: string, action: string): Promise<boolean>;
+    domain(accountId: AccountId, domainId: number, resource: string, action: string): Promise<boolean>;
+  };
+  findUnheldPermissions(
+    accountId: AccountId,
+    required: {
+      global?: { resource: string; action: string }[];
+      domain?: { domainId: number; resource: string; action: string }[];
+    }
+  ): Promise<{
+    global: { resource: string; action: string }[];
+    domain: { domainId: number; resource: string; action: string }[];
+  }>;
 }
 
 export function createAssertions(config: CustomPermissionGuardConfig) {
@@ -303,5 +368,57 @@ export function createAssertions(config: CustomPermissionGuardConfig) {
     },
   };
 
-  return { assertOne, assertAll } satisfies Assertions;
+  // Non-throwing acrud query: `true` when the account effectively holds
+  // resource.action (honouring the same ownership/bridge/dependsOn evaluation
+  // as assertOne), `false` when it does not, instead of throwing via
+  // onForbidden. A misconfiguration still throws CustomPermissionGuardConfigError.
+  const check: Assertions["check"] = {
+    global(accountId, resource, action) {
+      assertDimensionAuthorized(config, "global", "acrud");
+      return evalGlobalAcrudHeld(config, createCache(), accountId, resource, action);
+    },
+    domain(accountId, domainId, resource, action) {
+      assertDimensionAuthorized(config, "domain", "acrud");
+      return evalDomainAcrudHeld(config, createCache(), accountId, domainId, resource, action);
+    },
+  };
+
+  // Anti-escalation primitive: returns the subset of `required` that `accountId`
+  // does NOT hold (empty arrays => holds them all). The consumer decides the
+  // reaction -- throw, log, strip the offending rows -- and owns any superuser
+  // bypass (check isRoot before calling). The lib stays agnostic of "who may
+  // grant what"; it only answers "does this subject hold these permissions".
+  // One shared cache spans the whole batch, so N permissions for the same
+  // grantee resolve that grantee's groups once.
+  async function findUnheldPermissions(
+    accountId: AccountId,
+    required: {
+      global?: { resource: string; action: string }[];
+      domain?: { domainId: number; resource: string; action: string }[];
+    }
+  ) {
+    const globalReq = required.global ?? [];
+    const domainReq = required.domain ?? [];
+    const cache = createCache();
+
+    const global: { resource: string; action: string }[] = [];
+    if (globalReq.length) {
+      assertDimensionAuthorized(config, "global", "acrud");
+      for (const p of globalReq) {
+        if (!(await evalGlobalAcrudHeld(config, cache, accountId, p.resource, p.action))) global.push(p);
+      }
+    }
+
+    const domain: { domainId: number; resource: string; action: string }[] = [];
+    if (domainReq.length) {
+      assertDimensionAuthorized(config, "domain", "acrud");
+      for (const p of domainReq) {
+        if (!(await evalDomainAcrudHeld(config, cache, accountId, p.domainId, p.resource, p.action))) domain.push(p);
+      }
+    }
+
+    return { global, domain };
+  }
+
+  return { assertOne, assertAll, check, findUnheldPermissions } satisfies Assertions;
 }

@@ -271,6 +271,119 @@ describe("assertOne/assertAll — authorizedPermissions kill-switch", () => {
   });
 });
 
+describe("check — non-throwing acrud query", () => {
+  let store: FakeStore;
+  beforeEach(() => {
+    store = createFakeStore();
+  });
+
+  it("returns true when access + action are both held, without throwing", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    seedGlobalPermission(store, 10, "domains", "read");
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.global(1, "domains", "read")).resolves.toBe(true);
+  });
+
+  it("returns false (never throws) when the permission is not held", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.global(1, "domains", "read")).resolves.toBe(false);
+  });
+
+  it("returns false when a global dependsOn is unmet, instead of throwing", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "billing", "access");
+    seedGlobalPermission(store, 10, "billing", "read"); // but domains:access (its dependsOn) is missing
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.global(1, "billing", "read")).resolves.toBe(false);
+  });
+
+  it("honours the domain ownership bypass", async () => {
+    seedOwnedDomain(store, 1, 7);
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.domain(1, 7, "recipients", "read")).resolves.toBe(true);
+  });
+
+  it("honours the domain bridge from a global resource", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    seedGlobalPermission(store, 10, "domains", "modify");
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.domain(1, 999, "domain", "modify")).resolves.toBe(true);
+  });
+
+  it("returns false when a domain dependsOn is unmet, instead of throwing", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedDomainPermission(store, 10, 7, "recipients", "access"); // recipients dependsOn domain:access, which is missing
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.domain(1, 7, "recipients", "access")).resolves.toBe(false);
+  });
+
+  it("still throws a config error for an unknown resource", async () => {
+    const { check } = createAssertions(testConfig(store));
+    await expect(check.global(1, "typo-resource", "access")).rejects.toBeInstanceOf(CustomPermissionGuardConfigError);
+  });
+});
+
+describe("findUnheldPermissions — anti-escalation primitive", () => {
+  let store: FakeStore;
+  beforeEach(() => {
+    store = createFakeStore();
+  });
+
+  it("returns empty arrays when the account holds every required permission", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    seedGlobalPermission(store, 10, "domains", "read");
+    const { findUnheldPermissions } = createAssertions(testConfig(store));
+    const unheld = await findUnheldPermissions(1, {
+      global: [
+        { resource: "domains", action: "access" },
+        { resource: "domains", action: "read" },
+      ],
+    });
+    expect(unheld).toEqual({ global: [], domain: [] });
+  });
+
+  it("returns exactly the global permissions the account does not hold", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedGlobalPermission(store, 10, "domains", "access");
+    seedGlobalPermission(store, 10, "domains", "read");
+    const { findUnheldPermissions } = createAssertions(testConfig(store));
+    const unheld = await findUnheldPermissions(1, {
+      global: [
+        { resource: "domains", action: "read" }, // held
+        { resource: "domains", action: "delete" }, // NOT held
+      ],
+    });
+    expect(unheld.global).toEqual([{ resource: "domains", action: "delete" }]);
+    expect(unheld.domain).toEqual([]);
+  });
+
+  it("evaluates the domain tier too, honouring ownership", async () => {
+    seedGroupMembership(store, 1, 10);
+    seedOwnedDomain(store, 1, 7); // owns domain 7 -> holds all of its domain-tier actions
+    const { findUnheldPermissions } = createAssertions(testConfig(store));
+    const unheld = await findUnheldPermissions(1, {
+      domain: [
+        { domainId: 7, resource: "recipients", action: "read" }, // held via ownership
+        { domainId: 9, resource: "recipients", action: "read" }, // NOT held (different domain)
+      ],
+    });
+    expect(unheld.global).toEqual([]);
+    expect(unheld.domain).toEqual([{ domainId: 9, resource: "recipients", action: "read" }]);
+  });
+
+  it("still surfaces a config error for an unknown resource", async () => {
+    const { findUnheldPermissions } = createAssertions(testConfig(store));
+    await expect(findUnheldPermissions(1, { global: [{ resource: "typo", action: "access" }] })).rejects.toBeInstanceOf(
+      CustomPermissionGuardConfigError
+    );
+  });
+});
+
 describe("assertOne — sugar over assertAll", () => {
   let store: FakeStore;
   beforeEach(() => {

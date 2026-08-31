@@ -7,6 +7,7 @@ interface GroupRow extends RowDataPacket {
   description: string | null;
   owner_id: AccountId | null;
   is_default: number;
+  is_protected: number;
   created_at: Date;
 }
 
@@ -60,7 +61,9 @@ export function createSqlData(pool: Pool) {
       return result.insertId;
     },
     async listGroups() {
-      const [rows] = await pool.query<GroupRow[]>("SELECT id, name, description, owner_id, is_default, created_at FROM `groups`");
+      const [rows] = await pool.query<GroupRow[]>(
+        "SELECT id, name, description, owner_id, is_default, is_protected, created_at FROM `groups`"
+      );
       const groups = [];
       for (const g of rows) {
         const [[count]] = await pool.query<CountRow[]>("SELECT COUNT(*) AS memberCount FROM account_groups WHERE group_id = ?", [
@@ -72,6 +75,7 @@ export function createSqlData(pool: Pool) {
           description: g.description,
           ownerId: g.owner_id,
           isDefault: Boolean(g.is_default),
+          protected: Boolean(g.is_protected),
           memberCount: count.memberCount,
           createdAt: g.created_at,
         });
@@ -80,7 +84,7 @@ export function createSqlData(pool: Pool) {
     },
     async findGroup(groupId: number) {
       const [rows] = await pool.query<GroupRow[]>(
-        "SELECT id, name, description, owner_id, is_default, created_at FROM `groups` WHERE id = ?",
+        "SELECT id, name, description, owner_id, is_default, is_protected, created_at FROM `groups` WHERE id = ?",
         [groupId]
       );
       const g = rows[0];
@@ -91,6 +95,7 @@ export function createSqlData(pool: Pool) {
         description: g.description,
         ownerId: g.owner_id,
         isDefault: Boolean(g.is_default),
+        protected: Boolean(g.is_protected),
         createdAt: g.created_at,
       };
     },
@@ -102,6 +107,13 @@ export function createSqlData(pool: Pool) {
     },
     async setGroupOwner(groupId: number, accountId: AccountId | null) {
       await pool.query("UPDATE `groups` SET owner_id = ? WHERE id = ?", [accountId, groupId]);
+    },
+    async findGroupProtected(groupId: number) {
+      const [rows] = await pool.query<RowDataPacket[]>("SELECT is_protected FROM `groups` WHERE id = ?", [groupId]);
+      return rows[0] ? Boolean(rows[0].is_protected) : false;
+    },
+    async setGroupProtected(groupId: number, isProtected: boolean) {
+      await pool.query("UPDATE `groups` SET is_protected = ? WHERE id = ?", [isProtected, groupId]);
     },
     async deleteGroup(groupId: number) {
       await pool.query("DELETE FROM `groups` WHERE id = ?", [groupId]);

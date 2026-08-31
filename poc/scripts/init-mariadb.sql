@@ -28,6 +28,7 @@ CREATE TABLE express_single_db.`groups` (
   description TEXT         NULL,
   owner_id    VARCHAR(64)  NULL,
   is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_protected BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_es_groups_owner FOREIGN KEY (owner_id) REFERENCES express_single_db.accounts (id) ON DELETE SET NULL
 );
@@ -73,6 +74,7 @@ CREATE TABLE express_multiple_db.`groups` (
   description TEXT         NULL,
   owner_id    VARCHAR(64)  NULL,
   is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_protected BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_em_groups_owner FOREIGN KEY (owner_id) REFERENCES express_multiple_db.accounts (id) ON DELETE SET NULL
 );
@@ -117,6 +119,7 @@ CREATE TABLE nest_single_db.`groups` (
   description TEXT         NULL,
   owner_id    VARCHAR(64)  NULL,
   is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_protected BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_ns_groups_owner FOREIGN KEY (owner_id) REFERENCES nest_single_db.accounts (id) ON DELETE SET NULL
 );
@@ -162,6 +165,7 @@ CREATE TABLE nest_multiple_db.`groups` (
   description TEXT         NULL,
   owner_id    VARCHAR(64)  NULL,
   is_default  BOOLEAN      NOT NULL DEFAULT FALSE,
+  is_protected BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_nm_groups_owner FOREIGN KEY (owner_id) REFERENCES nest_multiple_db.accounts (id) ON DELETE SET NULL
 );

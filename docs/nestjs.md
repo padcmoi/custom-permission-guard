@@ -367,9 +367,53 @@ listTasks(@Param("domainId") domainId: string) {
 }
 ```
 
-Anti-escalation and any root/superuser bypass are both explicitly **out of the library's
-scope** — compose them the same way, from `assertOne`/`assertAll`, never as a library config
-flag.
+Anti-escalation (a caller may only grant permissions it already holds) is a POLICY your app
+owns, but the library ships the primitive for it: `utils.findUnheldPermissions` returns whatever
+the granter lacks, so you decide the reaction and keep the root/superuser bypass on your side.
+
+```ts
+import { ForbiddenException, Injectable } from "@nestjs/common";
+import { CustomPermissionGuardService } from "../custom-permission-guard/custom-permission-guard.service.js";
+
+@Injectable()
+export class AntiEscalationService {
+  constructor(private readonly permissions: CustomPermissionGuardService) {}
+
+  // Call this before writing a group's permissions, adding a member to a group,
+  // or inviting an account straight into one — any path that hands the grantee
+  // a permission by union. `actingUser.isRoot` is your app's own concept, the
+  // library never knows about it.
+  async assertCanGrant(
+    actingUser: { id: number | string; isRoot: boolean },
+    global: { resource: string; action: string }[],
+    domain: { domainId: number; resource: string; action: string }[]
+  ) {
+    if (actingUser.isRoot) return; // superuser bypass — the consumer's decision, not the lib's
+    const unheld = await this.permissions.guard.utils.findUnheldPermissions(actingUser.id, { global, domain });
+    if (unheld.global.length || unheld.domain.length) {
+      throw new ForbiddenException("Cannot grant a permission you do not hold");
+    }
+  }
+
+  // For a full-replace EDIT of a group's permissions, gate the DELTA only:
+  // diffPermissions says what the edit changes, so toggling one resource is not
+  // blocked by unrelated rights the group already carries above the actor. Here
+  // both sides are gated (revoking a right you lack is tampering) — that "both"
+  // is your policy, the lib only hands you added/removed.
+  async assertCanReplace(
+    actingUser: { id: number | string; isRoot: boolean },
+    before: { resource: string; action: string }[],
+    after: { resource: string; action: string }[]
+  ) {
+    if (actingUser.isRoot) return;
+    const { added, removed } = this.permissions.guard.utils.diffPermissions({ global: before }, { global: after });
+    await this.assertCanGrant(actingUser, [...added.global, ...removed.global], [...added.domain, ...removed.domain]);
+  }
+}
+```
+
+Any root/superuser bypass stays **out of the library's scope**, exactly as shown above: decided
+around the call, never as a library config flag.
 
 ## 3) Module wiring
 
