@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## [Unreleased] - yyyy-mm-dd
+## [1.3.0] - 2026-08-31
 
 - Add per-group protection: `GroupSummary`/`GroupDetail` gain a `protected` flag (surfaced by
   `listGroups`/`findGroup`), `setGroupProtected(groupId, isProtected)` toggles it, and `deleteGroup`
